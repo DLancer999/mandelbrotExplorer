@@ -1,0 +1,53 @@
+#version 430 core
+
+layout(local_size_x = 128, local_size_y = 1) in;
+layout(r32ui, binding = 0) uniform uimage2D escapeTime;
+layout(r32f,  binding = 1) uniform image2D ZMag2;
+
+uniform vec2  camCenter;
+uniform float pixelSize;
+uniform uint  fracAccuracy;
+uniform int   width;
+uniform ivec2 halfSize;
+
+void main()
+{
+    ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+  //ivec2 size = imageSize(escapeTime);
+    if (pixel_coords.x>=width) return;
+    //C complex number
+    vec2 c= camCenter + pixelSize*(pixel_coords-halfSize+0.5f);
+
+    //Z complex number
+    vec2 Z = vec2(0.0f,0.0f);
+
+    float mag2=0.0;
+
+    uint pixelEscapeTime = 0;
+
+    int i;
+    for (i=0;i<fracAccuracy;i++)
+    {
+        //z = z*z + c
+        Z = vec2(Z.x*Z.x-Z.y*Z.y + c.x, 2.0f*Z.x*Z.y + c.y);
+
+        mag2 = dot(Z,Z);
+        if (mag2>4.0f) 
+        {
+            break;
+        }
+    }
+    if (i == fracAccuracy)
+    {
+        //pixel in mandrebolt - black color
+        pixelEscapeTime = 0;
+        mag2=4.0f;
+    }
+    else
+    {
+        pixelEscapeTime = i;
+    }
+
+    imageStore(escapeTime, pixel_coords, ivec4(pixelEscapeTime,0,0,0));
+    imageStore(ZMag2,      pixel_coords, vec4(mag2,0,0,0));
+}
